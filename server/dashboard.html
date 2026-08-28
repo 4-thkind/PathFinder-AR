@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PathFinder AR · Road Condition Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      :root { --bg:#0b0f14; --panel:#141b23; --line:#22303d; --text:#e8eef4; --muted:#8fa3b5; --accent:#35d0a5; --warn:#ffb020; --danger:#ff4d4d; color-scheme:dark; }
+      * { box-sizing:border-box; }
+      body { margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+      header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; }
+      .mark { width:40px; height:40px; border-radius:11px; background:linear-gradient(140deg,var(--accent),#1d8fd1); color:#04121a; font-weight:800; display:grid; place-items:center; }
+      h1 { font-size:18px; margin:0; }
+      header p { margin:2px 0 0; color:var(--muted); font-size:13px; }
+      main { display:grid; grid-template-columns:340px 1fr; gap:0; height:calc(100dvh - 79px); }
+      aside { padding:18px; overflow-y:auto; border-right:1px solid var(--line); display:flex; flex-direction:column; gap:14px; }
+      #map { height:100%; background:#0e1620; }
+      .cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+      .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; }
+      .card span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+      .card b { font-size:24px; font-variant-numeric:tabular-nums; }
+      h2 { font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:6px 0 0; }
+      table { width:100%; border-collapse:collapse; font-size:13px; }
+      th { text-align:left; color:var(--muted); font-weight:500; padding:6px 4px; border-bottom:1px solid var(--line); }
+      td { padding:8px 4px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+      tr { cursor:pointer; }
+      tr:hover td { background:var(--panel); }
+      .pill { padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+      .confirmed { background:rgba(255,77,77,.18); color:var(--danger); }
+      .likely { background:rgba(255,176,32,.18); color:var(--warn); }
+      .unverified { background:rgba(143,163,181,.15); color:var(--muted); }
+      .leaflet-tile { filter:brightness(.72) saturate(.75) hue-rotate(175deg); }
+      footer { color:var(--muted); font-size:12px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="mark">PF</div>
+      <div>
+        <h1>Road Condition Dashboard</h1>
+        <p>Crowdsourced hazard intelligence · live from PathFinder AR riders</p>
+      </div>
+    </header>
+
+    <main>
+      <aside>
+        <div class="cards">
+          <div class="card"><span>Hazards mapped</span><b id="s-hazards">–</b></div>
+          <div class="card"><span>Rider reports</span><b id="s-reports">–</b></div>
+          <div class="card"><span>Confirmed</span><b id="s-confirmed">–</b></div>
+          <div class="card"><span>Types</span><b id="s-types">–</b></div>
+        </div>
+        <h2>Repair priority</h2>
+        <table>
+          <thead><tr><th>Hazard</th><th>Reports</th><th>Confidence</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <footer>
+          Ranked by consensus confidence: how many independent riders saw it, how
+          sure their detector was, and how recently. Refreshes every 15 s.
+        </footer>
+      </aside>
+      <div id="map"></div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      const map = L.map("map", { attributionControl: false }).setView([20.59, 78.96], 5);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+      const layer = L.layerGroup().addTo(map);
+      let fitted = false;
+
+      const band = (score) =>
+        score >= 0.7 ? ["confirmed", "#ff4d4d"] : score >= 0.4 ? ["likely", "#ffb020"] : ["unverified", "#8fa3b5"];
+
+      async function refresh() {
+        // one wide query is enough at prototype scale; a real deployment would
+        // page by map viewport
+        const [stats, data] = await Promise.all([
+          fetch("/api/stats").then((r) => r.json()),
+          fetch("/api/hazards?lat=20.59&lon=78.96&radius=20000000").then((r) => r.json()),
+        ]);
+
+        s_hazards.textContent = stats.hazards;
+        s_reports.textContent = stats.reports;
+        s_confirmed.textContent = stats.confirmed;
+        s_types.textContent = Object.keys(stats.by_type).length;
+
+        const hazards = data.hazards;
+        layer.clearLayers();
+        rows.innerHTML = "";
+
+        for (const h of hazards) {
+          const [cls, colour] = band(h.score);
+          const marker = L.circleMarker([h.lat, h.lon], {
+            radius: 6 + 6 * h.score,
+            color: colour,
+            fillColor: colour,
+            fillOpacity: 0.2 + 0.5 * h.score,
+            weight: 1.5,
+          }).bindPopup(
+            `<b>${h.type.replace(/_/g, " ")}</b><br>${h.reports} report(s)<br>` +
+              `${Math.round(h.score * 100)}% confidence<br>` +
+              `last seen ${new Date(h.at).toLocaleDateString()}`
+          );
+          marker.addTo(layer);
+
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            `<td>${h.type.replace(/_/g, " ")}<br><small style="color:#8fa3b5">${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</small></td>` +
+            `<td>${h.reports}</td>` +
+            `<td><span class="pill ${cls}">${Math.round(h.score * 100)}%</span></td>`;
+          tr.onclick = () => { map.setView([h.lat, h.lon], 17); marker.openPopup(); };
+          rows.append(tr);
+        }
+
+        if (!fitted && hazards.length) {
+          map.fitBounds(L.latLngBounds(hazards.map((h) => [h.lat, h.lon])).pad(0.3));
+          fitted = true;
+        }
+      }
+
+      refresh();
+      setInterval(refresh, 15000);
+    </script>
+  </body>
+</html>
