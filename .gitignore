@@ -1,0 +1,24 @@
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# node
+node_modules/
+app/dist/
+
+# ml artefacts - regenerate with ml/prepare_data.py and ml/train.py
+ml/raw/
+ml/data/
+ml/runs/
+*.pt
+yolov8n.pt
+
+# runtime data
+server/hazards.db
+
+# editors / os
+.DS_Store
+Thumbs.db
+.vscode/
+pathfinder_ar_specification.md
