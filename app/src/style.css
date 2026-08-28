@@ -1,0 +1,226 @@
+:root {
+  --bg: #0b0f14;
+  --panel: #141b23;
+  --line: #22303d;
+  --text: #e8eef4;
+  --muted: #8fa3b5;
+  --accent: #35d0a5;
+  --warn: #ffb020;
+  --danger: #ff4d4d;
+  --route: #ff7a00;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.screen {
+  min-height: 100dvh;
+  padding: max(18px, env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.hidden { display: none !important; }
+
+/* ---------- home ---------- */
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand h1 { margin: 0; font-size: 21px; letter-spacing: -0.02em; }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.brand-mark {
+  width: 46px; height: 46px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 13px;
+  background: linear-gradient(140deg, var(--accent), #1d8fd1);
+  color: #04121a; font-weight: 800; letter-spacing: -0.03em;
+}
+
+.map {
+  flex: 1;
+  min-height: 220px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.status {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.status-key { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.status b { font-size: 15px; font-weight: 600; }
+
+button {
+  font: inherit;
+  border-radius: 13px;
+  padding: 15px 18px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.primary { background: var(--accent); color: #04121a; font-weight: 700; }
+.primary:disabled { opacity: 0.45; }
+.ghost { background: transparent; color: var(--text); border-color: var(--line); }
+.danger { background: var(--danger); color: #fff; font-weight: 700; }
+.small { padding: 12px 14px; font-size: 14px; }
+
+.fineprint { color: var(--muted); font-size: 12px; margin: 0; }
+
+/* ---------- ride ---------- */
+#screen-ride {
+  padding: 0;
+  background: #000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* the road takes the top slice, the map the rest */
+.ride-camera { position: relative; flex: 1 1 54%; min-height: 0; overflow: hidden; }
+.ride-nav { position: relative; flex: 1 1 46%; min-height: 0; display: flex; flex-direction: column; }
+
+#cam, #overlay {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  /* `contain`, not `cover`: the camera pane is much wider than the camera
+     frame, and cropping would hide hazards near the bottom of the frame - the
+     closest and most urgent ones. Letterboxing keeps every detection on screen.
+     videoToScreen() in main.ts must use the same fit. */
+  object-fit: contain;
+}
+#cam { z-index: 0; }
+#overlay { z-index: 1; pointer-events: none; }
+
+.hud-top {
+  position: absolute; z-index: 2;
+  top: max(10px, env(safe-area-inset-top)); left: 10px; right: 10px;
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.hud-chip {
+  background: rgba(11, 15, 20, 0.72);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 5px 9px;
+  display: flex; align-items: baseline; gap: 5px;
+}
+.hud-chip b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.hud-chip span { font-size: 10px; color: var(--muted); }
+#hud-rec b { color: var(--danger); animation: pulse 2s infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+/* the warning has to be readable in a glance, at arm's length, in sunlight */
+.alert-banner {
+  position: absolute; z-index: 3;
+  left: 10px; right: 10px; bottom: 10px;
+  background: var(--warn);
+  color: #1a1200;
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
+  animation: pop 0.18s ease-out;
+}
+.alert-banner.severe { background: var(--danger); color: #fff; }
+.alert-icon { font-size: 30px; line-height: 1; }
+.alert-banner strong { display: block; font-size: 20px; letter-spacing: 0.01em; text-transform: uppercase; }
+.alert-banner span { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0.85; }
+@keyframes pop { from { transform: scale(0.94); opacity: 0; } }
+
+.ride-map { flex: 1; min-height: 0; background: #0e1620; }
+
+.nav-strip {
+  flex: none;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+.nav-dest { min-width: 0; }
+.nav-dest b {
+  display: block; font-size: 14px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nav-eta { text-align: right; flex: none; }
+.nav-eta b { display: block; font-size: 17px; font-variant-numeric: tabular-nums; }
+.nav-eta span { font-size: 12px; color: var(--muted); }
+
+.hud-bottom {
+  flex: none;
+  display: flex; gap: 8px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: var(--bg);
+}
+.hud-bottom .danger { flex: 1; }
+
+/* ---------- destination entry ---------- */
+.dest-row { display: flex; gap: 8px; }
+.dest-row input {
+  flex: 1; min-width: 0;
+  font: inherit;
+  padding: 13px 14px;
+  border-radius: 13px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+}
+.dest-row input::placeholder { color: var(--muted); }
+
+/* candidate places - similarly named spots are told apart by their address */
+.dest-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dest-results li {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.dest-results li:hover, .dest-results li:focus-visible { border-color: var(--accent); }
+.dest-results b { display: block; font-size: 14px; }
+.dest-results span { display: block; font-size: 12px; color: var(--muted); }
+.dest-results em { font-style: normal; color: var(--route); font-weight: 600; }
+
+/* the rider's position and which way they are pointing */
+.rider-marker { width: 64px; height: 64px; }
+.rider-marker svg { width: 100%; height: 100%; display: block; }
+.rider-cone { transition: transform 0.2s linear; transform-origin: 32px 32px; }
+
+/* ---------- summary + settings ---------- */
+h2 { margin: 4px 0 0; font-size: 20px; }
+h3 { margin: 8px 0 0; font-size: 15px; color: var(--muted); font-weight: 600; }
+#screen-summary, #screen-settings { overflow-y: auto; }
+
+.clip-list { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.clip {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 13px; padding: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.clip video { width: 100%; border-radius: 9px; background: #000; }
+.clip a { color: var(--accent); font-size: 13px; }
+
+#screen-settings label {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 13px; color: var(--muted);
+}
+#screen-settings label.row { flex-direction: row; align-items: center; gap: 10px; color: var(--text); font-size: 15px; }
+#screen-settings output { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+
+/* leaflet dark tweak */
+.leaflet-container { background: #0e1620; }
+.leaflet-tile { filter: brightness(0.72) saturate(0.75) hue-rotate(175deg) invert(0.03); }

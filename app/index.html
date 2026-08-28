@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b0f14" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <title>PathFinder AR</title>
+  </head>
+  <body>
+    <!-- ================= HOME ================= -->
+    <section id="screen-home" class="screen">
+      <header class="brand">
+        <div class="brand-mark">PF</div>
+        <div>
+          <h1>PathFinder AR</h1>
+          <p>Road-hazard co-pilot for two-wheelers</p>
+        </div>
+      </header>
+
+      <div id="home-map" class="map"></div>
+
+      <div class="status-grid">
+        <div class="status"><span class="status-key">Detector</span><b id="st-model">loading…</b></div>
+        <div class="status"><span class="status-key">GPS</span><b id="st-gps">waiting</b></div>
+        <div class="status"><span class="status-key">Network hazards</span><b id="st-network">—</b></div>
+        <div class="status"><span class="status-key">Queued reports</span><b id="st-queue">0</b></div>
+      </div>
+
+      <div class="dest-row">
+        <input id="in-destination" type="search" placeholder="Where to? (optional)" autocomplete="off" />
+        <button id="btn-destination" class="ghost small">Set</button>
+      </div>
+      <p id="dest-status" class="fineprint"></p>
+      <ul id="dest-results" class="dest-results hidden"></ul>
+
+      <button id="btn-start" class="primary" disabled>Start Ride</button>
+      <button id="btn-settings" class="ghost">Settings &amp; calibration</button>
+      <p class="fineprint">
+        Video is analysed on this device and never uploaded. Only hazard
+        coordinates are shared with the network.
+      </p>
+    </section>
+
+    <!-- ================= RIDE ================= -->
+    <section id="screen-ride" class="screen hidden">
+      <!-- top half: the road, with hazards drawn over it -->
+      <div class="ride-camera">
+        <video id="cam" playsinline muted autoplay></video>
+        <canvas id="overlay"></canvas>
+
+        <div class="hud-top">
+          <div class="hud-chip"><b id="hud-speed">0</b><span>km/h</span></div>
+          <div class="hud-chip"><b id="hud-fps">0</b><span>fps</span></div>
+          <div class="hud-chip"><b id="hud-hazards">0</b><span>seen</span></div>
+          <div class="hud-chip" id="hud-rec"><b>REC</b><span id="hud-buffer">0s</span></div>
+        </div>
+
+        <div id="alert-banner" class="alert-banner hidden">
+          <span class="alert-icon">&#9888;</span>
+          <div>
+            <strong id="alert-title">POTHOLE AHEAD</strong>
+            <span id="alert-sub">DISTANCE: 30 m</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- bottom half: where you are and where you are going -->
+      <div class="ride-nav">
+        <div id="ride-map" class="ride-map"></div>
+        <div class="nav-strip">
+          <div class="nav-dest">
+            <span class="status-key">Destination</span>
+            <b id="nav-name">No destination set</b>
+          </div>
+          <div class="nav-eta">
+            <b id="nav-distance">&mdash;</b>
+            <span id="nav-eta">&mdash;</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-bottom">
+        <button id="btn-incident" class="danger">Save clip</button>
+        <button id="btn-mute" class="ghost small">Mute</button>
+        <button id="btn-end" class="ghost small">End ride</button>
+      </div>
+    </section>
+
+    <!-- ================= SUMMARY ================= -->
+    <section id="screen-summary" class="screen hidden">
+      <h2>Ride summary</h2>
+      <div class="status-grid">
+        <div class="status"><span class="status-key">Duration</span><b id="sum-duration">—</b></div>
+        <div class="status"><span class="status-key">Distance</span><b id="sum-distance">—</b></div>
+        <div class="status"><span class="status-key">Hazards detected</span><b id="sum-hazards">—</b></div>
+        <div class="status"><span class="status-key">Warnings given</span><b id="sum-alerts">—</b></div>
+      </div>
+      <h3>Saved footage</h3>
+      <div id="clip-list" class="clip-list"><p class="fineprint">No incidents saved this ride.</p></div>
+      <button id="btn-home" class="primary">Done</button>
+    </section>
+
+    <!-- ================= SETTINGS ================= -->
+    <section id="screen-settings" class="screen hidden">
+      <h2>Settings &amp; calibration</h2>
+      <p class="fineprint">
+        Distance estimates assume a flat road. Match these to your bike and mount
+        so warnings arrive at the right moment.
+      </p>
+      <label>Camera height above road <output id="out-height">1.00 m</output>
+        <input id="in-height" type="range" min="0.5" max="1.6" step="0.05" value="1" />
+      </label>
+      <label>Horizon position in frame <output id="out-horizon">0.45</output>
+        <input id="in-horizon" type="range" min="0.25" max="0.7" step="0.01" value="0.45" />
+      </label>
+      <label>Vertical field of view <output id="out-fov">55°</output>
+        <input id="in-fov" type="range" min="35" max="80" step="1" value="55" />
+      </label>
+      <label>Detection confidence <output id="out-score">0.40</output>
+        <input id="in-score" type="range" min="0.15" max="0.8" step="0.05" value="0.4" />
+      </label>
+      <label>Warn this far ahead <output id="out-warn">3.5 s</output>
+        <input id="in-warn" type="range" min="1.5" max="8" step="0.5" value="3.5" />
+      </label>
+      <label>Dashcam buffer <output id="out-buffer">180 s</output>
+        <input id="in-buffer" type="range" min="30" max="300" step="30" value="180" />
+      </label>
+      <label class="row"><input id="in-speech" type="checkbox" checked /> Spoken warnings</label>
+      <label class="row"><input id="in-upload" type="checkbox" checked /> Share hazards with the network</label>
+      <button id="btn-settings-back" class="primary">Back</button>
+    </section>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
