@@ -24,6 +24,24 @@ self.addEventListener("fetch", (event) => {
   // hazard data must always be live; everything else may come from cache
   if (new URL(request.url).pathname.startsWith("/api/")) return;
 
+  // The HTML shell goes network-first: it names the content-hashed asset
+  // bundles, so a stale copy would point at files that no longer exist and
+  // strand the rider on a broken page with no way to recover. Falls back to
+  // cache when there is no connection, which is the whole point of the SW.
+  // The assets themselves are hashed, so cache-first stays safe for them.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+          return response;
+        })
+        .catch(() => caches.match(request).then((hit) => hit ?? caches.match("/index.html"))),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then(
       (hit) =>
