@@ -70,26 +70,47 @@ The same data becomes a live repair-priority dashboard for a municipality.
 
 ---
 
-## Try it in 60 seconds
+## Run it on a phone
+
+Three commands. The app is built once and served by the backend, so the whole
+product — rider app, API and municipal dashboard — lives on **one origin on one
+port**, which is then exposed to the internet.
 
 ```bash
-# 1 — the hazard network + municipal dashboard
-python -m venv .venv && .venv/Scripts/activate      # Windows; use bin/activate on Unix
 pip install -r server/requirements.txt
-python server/seed_demo.py                          # optional: a populated demo map
-uvicorn server.main:app --host 0.0.0.0 --port 8000
+python server/seed_demo.py                            # optional: a populated demo map
 
-# 2 — the rider app
-cd app && npm install && npm run dev
+cd app && npm install && npm run build && cd ..       # dist/ is what the backend serves
+uvicorn server.main:app --port 8000                   # app + API + dashboard on :8000
+cloudflared tunnel --url http://127.0.0.1:8000        # prints a public https URL
 ```
 
-Vite prints an HTTPS LAN address such as `https://192.168.1.8:5173`. **Open that
-on your phone**, accept the self-signed certificate, allow camera and location,
-and tap **Start Ride**. The dashboard is at `http://localhost:8000/dashboard`.
+Open the printed URL on the phone, allow camera and location, tap **Start
+Ride**. The dashboard is the same URL + `/dashboard`.
 
-> **Why HTTPS even locally?** `getUserMedia` refuses to hand over a camera on an
-> insecure origin. `npm run dev` self-signs so a phone on the same wifi can
-> reach it — hence the certificate warning, which disappears on a real host.
+**The phone does not need to be on your wifi.** The tunnel dials *out* to
+Cloudflare, so there is no public IP, port forwarding or router access
+involved — the laptop can sit at home while the phone rides on mobile data.
+HTTPS comes free with the tunnel, which matters because browsers refuse to hand
+over a camera on an insecure origin.
+
+> **Load it once on wifi before setting off.** First visit pulls ~38 MB — the
+> 12 MB model and the 25 MB WASM runtime — after which the service worker has
+> them cached. Then, crucially: **inference is local, so detection and the
+> dashcam keep working with no signal at all.** Only the shared hazard map
+> pauses, and queued reports drain when it returns.
+
+Quick tunnels are for testing, not for a submission: the laptop must stay
+awake, and the hostname is random and dies with the process. A permanent link
+means deploying `app/dist` to any static host and the backend anywhere that
+runs Python.
+
+### Developing on it
+
+`npm run dev` instead, for hot reload while editing. It serves over HTTPS with a
+self-signed certificate on a LAN address, so a phone **on the same wifi** can
+reach it past the certificate warning — useful for iterating on the UI, but the
+build-and-tunnel route above is the one for actually riding.
 
 Full phone and Play Store instructions: **[`android/README.md`](android/README.md)**
 
@@ -252,6 +273,15 @@ not constants in the source:
 | Horizon position | 0.45 | Depends entirely on mount angle |
 | Vertical FOV | 55° | Varies by handset and lens |
 | Warn-ahead time | 3.5 s | Rider preference and typical speed |
+
+Setting them takes about a minute, once, with the phone in its mount:
+
+1. **Camera height** — measure lens to road with a tape. Distance scales
+   linearly with this, so it is the one worth measuring rather than guessing.
+2. **Horizon position** — look at the camera view and drag until the green
+   corridor lines sit on your lane edges. Those lines are drawn from the same
+   function the engine tests against, so what you see is exactly what will be
+   treated as "in my path".
 
 *Clean models don't survive contact with physical hardware. Leaving the knob is
 the engineering, not a shortcut around it.*
